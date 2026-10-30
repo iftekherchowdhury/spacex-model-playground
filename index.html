@@ -86,21 +86,36 @@
   .orbit-stage {
     position: relative;
     width: 100%;
-    aspect-ratio: 1.2 / 1;
-    max-height: 320px;
+    aspect-ratio: 1.15 / 1;
+    max-height: 340px;
     margin: 28px 0 4px;
     display: flex;
     align-items: center;
     justify-content: center;
+    isolation: isolate;
   }
   @media (min-width: 768px) {
-    .orbit-stage { margin: 48px 0 12px; max-height: 400px; }
+    .orbit-stage { margin: 48px 0 12px; max-height: 440px; }
   }
   .orbit-canvas {
     width: 100%;
     height: 100%;
     display: block;
+    touch-action: none;
   }
+  .orbit-bloom {
+    position: absolute;
+    inset: 18% 12% 22%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(160,190,255,0.20) 0%, rgba(160,190,255,0.06) 42%, transparent 70%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.8s var(--ease);
+    mix-blend-mode: screen;
+    z-index: 0;
+  }
+  .orbit-bloom.on { opacity: 1; }
+  .orbit-canvas { position: relative; z-index: 1; }
 
   /* Hero number */
   .hero {
@@ -125,7 +140,15 @@
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    transition: opacity 0.15s ease;
+    transition: opacity 0.15s ease, filter 0.6s var(--ease), text-shadow 0.6s var(--ease);
+    will-change: filter;
+  }
+  .hero-num.bloom {
+    filter: brightness(1.15);
+    text-shadow: 0 0 48px rgba(190, 205, 255, 0.28), 0 0 12px rgba(245,242,235,0.15);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-num.bloom { filter: none; text-shadow: none; }
   }
   .hero-unit {
     display: block;
@@ -184,11 +207,20 @@
     stroke-linecap: round;
     stroke-dasharray: 251.3;
     stroke-dashoffset: 251.3;
-    transition: stroke-dashoffset 0.7s var(--ease), stroke 0.4s ease;
+    transition: stroke-dashoffset 0.85s var(--ease), stroke 0.6s var(--ease), filter 0.6s var(--ease);
   }
-  .ring .prog.ok { stroke: #9ad4b1; }
-  .ring .prog.warn { stroke: var(--warm); }
-  .ring .prog.bad { stroke: #d48a8a; }
+  .ring .prog.ok { stroke: #9ad4b1; filter: drop-shadow(0 0 3px rgba(154,212,177,0.35)); }
+  .ring .prog.warn { stroke: var(--warm); filter: drop-shadow(0 0 4px rgba(196,181,154,0.4)); }
+  .ring .prog.bad { stroke: #d48a8a; filter: drop-shadow(0 0 5px rgba(212,138,138,0.45)); }
+  .ring.pulse .prog { animation: ringPulse 1.1s var(--ease); }
+  @keyframes ringPulse {
+    0% { stroke-width: 3; }
+    40% { stroke-width: 4.2; }
+    100% { stroke-width: 3; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ring.pulse .prog { animation: none; }
+  }
   .ring-center {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
@@ -583,6 +615,7 @@
     <p class="credit">An interactive reading of <a href="https://x.com/shaunmmaguire/status/2116260821080973679" target="_blank" rel="noopener">Shaun Maguire’s</a> bottoms-up forecast through 2028.</p>
 
     <div class="orbit-stage" aria-hidden="true">
+      <div class="orbit-bloom" id="orbitBloom"></div>
       <canvas class="orbit-canvas" id="orbit"></canvas>
     </div>
 
@@ -790,10 +823,15 @@
 
   function animateHero(to) {
     targetHero = to;
+    if (Math.abs(to - displayHero) > 0.05) {
+      try { pulseHeroBloom(); } catch (_) {}
+      const bloom = document.getElementById('orbitBloom');
+      if (bloom) { bloom.classList.add('on'); setTimeout(() => bloom.classList.remove('on'), 900); }
+    }
     if (heroRaf) return;
     const from = displayHero;
     const start = performance.now();
-    const dur = 520;
+    const dur = 560;
     function frame(now) {
       const t = Math.min(1, (now - start) / dur);
       displayHero = from + (targetHero - from) * easeOut(t);
@@ -911,6 +949,13 @@
     prog.classList.remove('ok','warn','bad');
     const cls = m.payback <= m.gpulife ? 'ok' : (m.payback <= m.gpulife * 1.25 ? 'warn' : 'bad');
     prog.classList.add(cls);
+    const ringWrap = prog.closest('.ring');
+    if (ringWrap && cls !== renderRing._lastCls) {
+      ringWrap.classList.remove('pulse');
+      void ringWrap.offsetWidth;
+      ringWrap.classList.add('pulse');
+      renderRing._lastCls = cls;
+    }
     document.getElementById('ringLabel').textContent = (!isFinite(m.payback) || m.payback > 99) ? '—' : m.payback.toFixed(1) + 'y';
     document.getElementById('payTitle').textContent = m.payback <= m.gpulife ? 'Inside GPU life' : 'Outside GPU life';
     document.getElementById('paySub').textContent = 'Payback ' + (isFinite(m.payback) ? m.payback.toFixed(1) : '—') + 'y versus a ' + m.gpulife.toFixed(1) + '-year chip window';
@@ -929,12 +974,54 @@
     drawOrbit(m);
   }
 
-  // Orbit visual
+  // Orbit visual — dramatic but tasteful Earth / Starlink centerpiece
   const canvas = document.getElementById('orbit');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  const bloomEl = document.getElementById('orbitBloom');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+  const SAT_CAP = isCoarse ? 72 : 96;
+
+  const RINGS = [
+    { r: 1.20, flat: 0.32, tilt: -0.48, speed: 0.24 },
+    { r: 1.38, flat: 0.38, tilt: -0.22, speed: 0.17 },
+    { r: 1.55, flat: 0.34, tilt: 0.20,  speed: 0.13 },
+    { r: 1.72, flat: 0.30, tilt: 0.42,  speed: 0.09 },
+  ];
+
   let sats = [];
+  let cityLights = [];
+  let groundNodes = [];
   let animT = 0;
-  let lastSS = 20;
+  let earthSpin = 0;
+  let lastModel = { ss: 20, ogw: 2.8, gw: 21, revgw: 40, totalGW: 23.8, totalOut: 731 };
+  let pointer = { x: 0, y: 0, tx: 0, ty: 0 };
+  let bloomUntil = 0;
+  let lastPayClass = '';
+  let launchQueue = 0;
+  let lastFrameTs = 0;
+
+  // Seeded city lights on a unit sphere (lon/lat)
+  (function initLights() {
+    let s = 42;
+    function rnd() { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }
+    for (let i = 0; i < 140; i++) {
+      const lat = (rnd() - 0.5) * Math.PI * 0.85;
+      const lon = rnd() * Math.PI * 2;
+      const bright = 0.35 + rnd() * 0.65;
+      // Bias toward northern / coastal clusters
+      if (Math.abs(lat) > 1.1 && rnd() > 0.4) continue;
+      cityLights.push({ lat, lon, bright });
+    }
+    // Ground data-center nodes (lon/lat on surface)
+    const hubs = [
+      [0.65, -1.3], [0.9, -0.2], [0.55, 0.4], [0.7, 2.0],
+      [-0.5, 2.5], [0.4, -2.2], [0.2, 1.2], [-0.3, -1.0],
+    ];
+    hubs.forEach(([lat, lon], i) => {
+      groundNodes.push({ lat, lon, phase: i * 0.7 });
+    });
+  })();
 
   function resizeCanvas() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -946,110 +1033,394 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  function ensureSats(n) {
-    n = Math.max(8, Math.min(120, Math.round(n)));
-    while (sats.length < n) {
-      sats.push({
-        a: Math.random() * Math.PI * 2,
-        r: 0.55 + Math.random() * 0.32,
-        speed: 0.15 + Math.random() * 0.35,
-        size: 0.8 + Math.random() * 1.4,
-        phase: Math.random() * Math.PI * 2,
-      });
+  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+  function easeInOut(t) { return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2; }
+
+  function targetSatCount(m) {
+    // Flights dominate; orbital GW adds density of higher shells
+    const fromFlights = 14 + (m.ss / 250) * 78;
+    const fromOgw = (m.ogw / 10) * 24;
+    return Math.max(8, Math.min(SAT_CAP, Math.round(fromFlights + fromOgw)));
+  }
+
+  function makeSat(stagger) {
+    const shell = Math.floor(Math.random() * RINGS.length);
+    const ring = RINGS[shell];
+    return {
+      shell,
+      a: Math.random() * Math.PI * 2,
+      speed: ring.speed * (0.85 + Math.random() * 0.4),
+      size: 1.15 + Math.random() * 1.45,
+      launchDur: 0.95 + Math.random() * 0.65,
+      launchDelay: stagger * 0.055,
+      fade: 1,
+      fading: false,
+      born: animT,
+    };
+  }
+
+  function syncConstellation(m) {
+    const target = targetSatCount(m);
+    const alive = sats.filter(s => !s.fading);
+    if (alive.length < target) {
+      const need = target - alive.length;
+      for (let i = 0; i < need; i++) sats.push(makeSat(i));
+      bloomUntil = performance.now() + 900;
+      if (bloomEl) bloomEl.classList.add('on');
+    } else if (alive.length > target) {
+      const excess = alive.length - target;
+      // Fade the newest first (still launching) then random orbiting
+      const candidates = alive.slice().sort((a, b) => b.born - a.born);
+      for (let i = 0; i < excess; i++) {
+        candidates[i].fading = true;
+      }
     }
-    if (sats.length > n) sats.length = n;
+    lastModel = m;
+  }
+
+  function projectSat(s, cx, cy, R, parallax) {
+    const ring = RINGS[s.shell];
+    const age = animT - s.born;
+    const raw = reduceMotion ? 1 : Math.max(0, Math.min(1, (age - s.launchDelay) / s.launchDur));
+    const lt = easeOutCubic(raw);
+
+    const ang = s.a + animT * s.speed;
+    const orbitR = R * ring.r;
+    const flat = ring.flat;
+
+    // Surface start point (same longitude, on limb-facing side)
+    const surfR = R * 0.98;
+    const sx = cx + Math.cos(ang) * surfR * 0.55 + parallax.x * 0.3;
+    const sy = cy + Math.sin(ang) * surfR * 0.55 * 0.4 + parallax.y * 0.3;
+
+    // Orbital position on inclined ellipse
+    const ox = cx + Math.cos(ang) * orbitR + parallax.x * (1 + s.shell * 0.15);
+    const oy = cy + Math.sin(ang) * orbitR * flat + Math.cos(ang) * Math.sin(ring.tilt) * R * 0.08 + parallax.y * (1 + s.shell * 0.1);
+
+    // Arc upward during launch (peak mid-flight)
+    const arc = Math.sin(lt * Math.PI) * R * 0.22;
+    const x = sx + (ox - sx) * lt;
+    const y = sy + (oy - sy) * lt - arc * (1 - lt * 0.3);
+
+    // Depth: sin(ang) relative to ring tilt
+    const z = Math.sin(ang + ring.tilt * 0.5);
+    return { x, y, z, lt, ang, orbitR };
+  }
+
+  function projectLonLat(lon, lat, cx, cy, R, spin, parallax) {
+    const L = lon + spin;
+    const x3 = Math.cos(lat) * Math.sin(L);
+    const y3 = Math.sin(lat);
+    const z3 = Math.cos(lat) * Math.cos(L); // +z toward camera
+    return {
+      x: cx + x3 * R + parallax.x * 0.5,
+      y: cy + y3 * R + parallax.y * 0.5,
+      z: z3,
+      front: z3 > -0.05,
+    };
   }
 
   function drawOrbit(m) {
-    // sat count from Starship flights — more flights → denser constellation
-    const target = 12 + Math.round((m.ss / 250) * 100);
-    ensureSats(target);
-    lastSS = m.ss;
+    syncConstellation(m);
+  }
+
+  function pulseHeroBloom() {
+    const node = document.getElementById('heroNum');
+    if (!node || reduceMotion) return;
+    node.classList.add('bloom');
+    clearTimeout(pulseHeroBloom._t);
+    pulseHeroBloom._t = setTimeout(() => node.classList.remove('bloom'), 700);
   }
 
   function frame(ts) {
+    const dt = lastFrameTs ? Math.min(0.05, (ts - lastFrameTs) / 1000) : 0.016;
+    lastFrameTs = ts;
     animT = ts * 0.001;
+    if (!reduceMotion) earthSpin += dt * 0.12;
+
+    // Smooth parallax
+    pointer.x += (pointer.tx - pointer.x) * (reduceMotion ? 1 : 0.06);
+    pointer.y += (pointer.ty - pointer.y) * (reduceMotion ? 1 : 0.06);
+
     const w = canvas.clientWidth, h = canvas.clientHeight;
     if (!w || !h) { requestAnimationFrame(frame); return; }
     ctx.clearRect(0, 0, w, h);
-    const cx = w * 0.5, cy = h * 0.58;
-    const R = Math.min(w, h) * 0.38;
 
-    // soft glow behind earth
-    const g = ctx.createRadialGradient(cx, cy, R * 0.2, cx, cy, R * 1.6);
-    g.addColorStop(0, 'rgba(120,150,220,0.14)');
-    g.addColorStop(0.45, 'rgba(80,100,160,0.05)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
+    const parallax = { x: pointer.x * 14, y: pointer.y * 10 };
+    const cx = w * 0.5 + parallax.x * 0.25;
+    const cy = h * 0.56 + parallax.y * 0.2;
+    const R = Math.min(w, h) * 0.36;
+
+    // Advance fades (launch progress is time-based in projectSat)
+    for (let i = sats.length - 1; i >= 0; i--) {
+      const s = sats[i];
+      if (s.fading) {
+        s.fade -= dt * 1.35;
+        if (s.fade <= 0) sats.splice(i, 1);
+      }
+    }
+
+    // Ambient space glow — scales with compute intensity
+    const intensity = Math.min(1, (lastModel.totalGW || 20) / 40) * 0.55
+      + Math.min(1, (lastModel.revgw || 40) / 60) * 0.45;
+    const ag = ctx.createRadialGradient(cx, cy, R * 0.15, cx, cy, R * 1.85);
+    ag.addColorStop(0, 'rgba(130,160,230,' + (0.10 + intensity * 0.10) + ')');
+    ag.addColorStop(0.4, 'rgba(90,120,190,' + (0.04 + intensity * 0.04) + ')');
+    ag.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = ag;
     ctx.fillRect(0, 0, w, h);
 
-    // Earth disc
-    const eg = ctx.createRadialGradient(cx - R * 0.25, cy - R * 0.3, R * 0.1, cx, cy, R);
-    eg.addColorStop(0, '#2a3344');
-    eg.addColorStop(0.55, '#141820');
-    eg.addColorStop(1, '#07080a');
+    // --- Earth ---
+    // Night/day base
+    const eg = ctx.createRadialGradient(
+      cx - R * 0.35 + Math.cos(earthSpin) * R * 0.08,
+      cy - R * 0.4,
+      R * 0.08,
+      cx, cy, R
+    );
+    eg.addColorStop(0, '#445574');
+    eg.addColorStop(0.32, '#1e2838');
+    eg.addColorStop(0.68, '#0d121a');
+    eg.addColorStop(1, '#050608');
     ctx.beginPath();
     ctx.arc(cx, cy, R, 0, Math.PI * 2);
     ctx.fillStyle = eg;
     ctx.fill();
 
-    // terminator / limb glow
+    // Soft continent suggestion (rotated blobs)
+    ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(210, 225, 255, 0.35)';
-    ctx.lineWidth = 1.25;
-    ctx.stroke();
-    const limb = ctx.createRadialGradient(cx - R * 0.4, cy - R * 0.5, R * 0.2, cx, cy, R * 1.05);
-    limb.addColorStop(0, 'rgba(255,255,255,0)');
-    limb.addColorStop(0.75, 'rgba(255,255,255,0)');
-    limb.addColorStop(0.92, 'rgba(200,220,255,0.08)');
-    limb.addColorStop(1, 'rgba(200,220,255,0.22)');
-    ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.fillStyle = limb;
-    ctx.fill();
-
-    // faint orbital rings
-    for (let i = 0; i < 3; i++) {
-      const rr = R * (1.18 + i * 0.18);
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, rr, rr * 0.32, -0.35, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(245,242,235,' + (0.07 - i * 0.015) + ')';
-      ctx.lineWidth = 1;
-      ctx.stroke();
+    ctx.clip();
+    for (let i = 0; i < 5; i++) {
+      const lon = i * 1.3 + earthSpin * 0.3;
+      const lat = Math.sin(i * 1.7) * 0.4;
+      const p = projectLonLat(lon, lat, cx, cy, R * 0.85, 0, parallax);
+      if (!p.front) continue;
+      const rg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, R * 0.35);
+      rg.addColorStop(0, 'rgba(50,70,55,' + (0.18 * p.z) + ')');
+      rg.addColorStop(1, 'rgba(50,70,55,0)');
+      ctx.fillStyle = rg;
+      ctx.fillRect(p.x - R * 0.4, p.y - R * 0.3, R * 0.8, R * 0.6);
     }
 
-    // satellites
-    sats.forEach((s, i) => {
-      const ang = s.a + animT * s.speed;
-      const rr = R * (1.15 + (s.r - 0.55) * 0.9);
-      const x = cx + Math.cos(ang) * rr;
-      const y = cy + Math.sin(ang) * rr * 0.32 - Math.sin(ang) * 4;
-      // depth: behind earth?
-      const behind = Math.sin(ang) > 0.15 && Math.abs(Math.cos(ang)) < 0.85 && rr < R * 1.25;
-      // simpler: use z = sin for opacity
-      const z = Math.sin(ang);
-      const alpha = 0.25 + 0.55 * ((z + 1) / 2);
-      if (z < -0.2) {
-        // draw behind faintly first — skip if deep behind disc
-        const dist = Math.hypot(x - cx, y - cy);
-        if (dist < R * 0.92) return;
-      }
+    // City lights on night side
+    cityLights.forEach(c => {
+      const p = projectLonLat(c.lon, c.lat, cx, cy, R * 0.97, earthSpin, parallax);
+      if (!p.front || p.z < 0.15) return;
+      // Night = right side roughly (negative x3 relative to sun at left)
+      const sunDot = Math.cos(c.lat) * Math.sin(c.lon + earthSpin); // approx
+      if (sunDot > 0.25) return; // day side
+      const a = c.bright * 0.62 * Math.max(0, -sunDot + 0.2) * Math.max(0.25, p.z);
       ctx.beginPath();
-      ctx.arc(x, y, s.size, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(245,242,235,' + alpha + ')';
+      ctx.arc(p.x, p.y, 0.7 + c.bright * 0.85, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 228, 175,' + a + ')';
       ctx.fill();
-      if (alpha > 0.6) {
-        ctx.beginPath();
-        ctx.arc(x, y, s.size * 3, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(180,200,255,' + (0.08 * alpha) + ')';
-        ctx.fill();
-      }
+    });
+    ctx.restore();
+
+    // Terminator soft shade
+    const term = ctx.createLinearGradient(cx - R, cy, cx + R, cy);
+    const sunShift = Math.sin(earthSpin * 0.5) * 0.1;
+    term.addColorStop(0, 'rgba(255,255,255,0.04)');
+    term.addColorStop(0.42 + sunShift, 'rgba(0,0,0,0)');
+    term.addColorStop(0.55 + sunShift, 'rgba(0,0,0,0.25)');
+    term.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fillStyle = term;
+    ctx.fill();
+
+    // Atmospheric rim
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(170, 200, 255, 0.38)';
+    ctx.lineWidth = 1.75;
+    ctx.stroke();
+    const atm = ctx.createRadialGradient(cx, cy, R * 0.92, cx, cy, R * 1.08);
+    atm.addColorStop(0, 'rgba(140,180,255,0)');
+    atm.addColorStop(0.55, 'rgba(140,180,255,0.10)');
+    atm.addColorStop(0.85, 'rgba(140,180,255,0.03)');
+    atm.addColorStop(1, 'rgba(140,180,255,0)');
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 1.08, 0, Math.PI * 2);
+    ctx.fillStyle = atm;
+    ctx.fill();
+
+    // Ground compute nodes (faint)
+    const nodeGlow = 0.15 + intensity * 0.45;
+    groundNodes.forEach(n => {
+      const p = projectLonLat(n.lon, n.lat, cx, cy, R * 0.98, earthSpin, parallax);
+      if (!p.front || p.z < 0.2) return;
+      const pulse = 0.7 + 0.3 * Math.sin(animT * 1.5 + n.phase);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(160, 200, 255,' + (nodeGlow * pulse * p.z * 0.7) + ')';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(140, 180, 255,' + (nodeGlow * pulse * 0.12 * p.z) + ')';
+      ctx.fill();
     });
 
-    // soft vignette bottom blend already from bg
+    // Orbital ring guides
+    RINGS.forEach((ring, i) => {
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, R * ring.r, R * ring.r * ring.flat, ring.tilt, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(245,242,235,' + (0.08 - i * 0.01) + ')';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+
+    // Precompute sat positions
+    const pos = sats.map(s => {
+      const p = projectSat(s, cx, cy, R, parallax);
+      p.sat = s;
+      return p;
+    });
+
+    // Draw sats behind Earth first
+    function drawSat(p) {
+      const s = p.sat;
+      if (p.lt <= 0 && (animT - s.born) < s.launchDelay) return;
+      let alpha = (0.30 + 0.58 * ((p.z + 1) / 2)) * s.fade;
+      if (p.lt < 1) alpha *= 0.4 + 0.6 * p.lt;
+      // Occlude behind disc when deep and not launching high
+      if (p.z < -0.15 && p.lt > 0.85) {
+        const dist = Math.hypot(p.x - cx, p.y - cy);
+        if (dist < R * 0.94) return;
+      }
+      // Launch trail
+      if (p.lt > 0.05 && p.lt < 0.95 && !reduceMotion) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y + 3, 0.8, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(180,200,255,' + (0.22 * (1 - p.lt) * s.fade) + ')';
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, s.size * (0.7 + 0.3 * p.lt), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(245,242,235,' + alpha + ')';
+      ctx.fill();
+      if (alpha > 0.5) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, s.size * 3.2, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(170,200,255,' + (0.11 * alpha * (0.55 + intensity)) + ')';
+        ctx.fill();
+      }
+    }
+
+    pos.filter(p => p.z < 0).forEach(drawSat);
+
+    // Compute light threads (front-ish sats + ground nodes) — cap for perf
+    const frontSats = pos.filter(p => p.z >= -0.1 && p.sat.fade > 0.5 && p.lt > 0.7);
+    const threadBudget = isCoarse ? 18 : 28;
+    const threadAlpha = 0.055 + intensity * 0.14;
+    if (threadAlpha > 0.05 && frontSats.length > 1) {
+      ctx.lineWidth = 0.7;
+      let drawn = 0;
+      for (let i = 0; i < frontSats.length && drawn < threadBudget; i++) {
+        const a = frontSats[i];
+        // Link to nearest neighbor and occasionally a ground node
+        let best = null, bestD = 1e9;
+        for (let j = i + 1; j < frontSats.length; j++) {
+          const b = frontSats[j];
+          const d = Math.hypot(a.x - b.x, a.y - b.y);
+          if (d < bestD && d < R * 0.9) { bestD = d; best = b; }
+        }
+        if (best) {
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(best.x, best.y);
+          ctx.strokeStyle = 'rgba(150,185,255,' + (threadAlpha * (1 - bestD / (R * 0.9))) + ')';
+          ctx.stroke();
+          drawn++;
+        }
+        if (drawn < threadBudget && i % 3 === 0) {
+          const gn = groundNodes[i % groundNodes.length];
+          const gp = projectLonLat(gn.lon, gn.lat, cx, cy, R * 0.98, earthSpin, parallax);
+          if (gp.front && gp.z > 0.25) {
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            const mx = (a.x + gp.x) / 2;
+            const my = (a.y + gp.y) / 2 - R * 0.08;
+            ctx.quadraticCurveTo(mx, my, gp.x, gp.y);
+            ctx.strokeStyle = 'rgba(140,180,255,' + (threadAlpha * 0.7 * gp.z) + ')';
+            ctx.stroke();
+            drawn++;
+          }
+        }
+      }
+    }
+
+    // Front sats
+    pos.filter(p => p.z >= 0).forEach(drawSat);
+
+    // Bloom overlay fade
+    if (bloomEl && performance.now() > bloomUntil) bloomEl.classList.remove('on');
+
     requestAnimationFrame(frame);
   }
+
+  // Pointer / tilt parallax
+  const stage = canvas.parentElement;
+  stage.addEventListener('pointermove', (e) => {
+    if (reduceMotion) return;
+    const r = stage.getBoundingClientRect();
+    pointer.tx = ((e.clientX - r.left) / r.width - 0.5) * 2;
+    pointer.ty = ((e.clientY - r.top) / r.height - 0.5) * 2;
+  });
+  stage.addEventListener('pointerleave', () => { pointer.tx = 0; pointer.ty = 0; });
+
+  if (window.DeviceOrientationEvent && !reduceMotion) {
+    let orientArmed = false;
+    const onOrient = (e) => {
+      if (e.beta == null || e.gamma == null) return;
+      pointer.tx = Math.max(-1, Math.min(1, (e.gamma || 0) / 25));
+      pointer.ty = Math.max(-1, Math.min(1, ((e.beta || 45) - 45) / 30));
+    };
+    // iOS needs permission; try silently, ignore failure
+    try {
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        // Don't prompt unsolicited — only enable if already granted via prior gesture elsewhere
+      } else {
+        window.addEventListener('deviceorientation', onOrient, { passive: true });
+        orientArmed = true;
+      }
+    } catch (_) {}
+    // Arm on first pointer down on stage (covers iOS permission)
+    stage.addEventListener('pointerdown', async () => {
+      if (orientArmed) return;
+      try {
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+          const r = await DeviceOrientationEvent.requestPermission();
+          if (r !== 'granted') return;
+        }
+        window.addEventListener('deviceorientation', onOrient, { passive: true });
+        orientArmed = true;
+      } catch (_) {}
+    }, { once: true });
+  }
+
+  // Demo / capture helper: ?ss=180 sets flights; ?ramp=1 animates flights up
+  (function demoParams() {
+    const q = new URLSearchParams(location.search);
+    if (q.has('ss')) {
+      const v = parseFloat(q.get('ss'));
+      if (isFinite(v)) { el.ss.value = clamp(v, 5, 250); }
+    }
+    if (q.get('ramp') === '1' && !reduceMotion) {
+      let t0 = null;
+      const from = val('ss'), to = 180;
+      function ramp(now) {
+        if (!t0) t0 = now;
+        const t = Math.min(1, (now - t0) / 4500);
+        el.ss.value = Math.round(from + (to - from) * easeOutCubic(t));
+        recalc();
+        if (t < 1) requestAnimationFrame(ramp);
+      }
+      requestAnimationFrame(ramp);
+    }
+  })();
 
 
   // —— Refine UI: tokens, segments, scenarios ——
@@ -1282,7 +1653,6 @@
   window.addEventListener('resize', () => { resizeCanvas(); });
 
   resizeCanvas();
-  ensureSats(20);
   requestAnimationFrame(frame);
   recalc();
 })();
