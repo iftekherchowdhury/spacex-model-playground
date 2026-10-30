@@ -341,7 +341,199 @@
   details.refine > summary::-webkit-details-marker { display: none; }
   details.refine > summary:hover { color: var(--fg); }
   details.refine[open] > summary { color: var(--fg); }
-  .refine-body { padding-bottom: 8px; }
+  .refine-body {
+    padding: 4px 0 20px;
+    animation: refineIn 0.45s var(--ease);
+  }
+  @keyframes refineIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .refine-section {
+    padding: 26px 0;
+    border-top: 1px solid var(--line);
+  }
+  .refine-section:first-child { border-top: none; padding-top: 8px; }
+  .refine-kicker {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    font-weight: 500;
+  }
+  .refine-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .refine-row:last-child { margin-bottom: 0; }
+  .refine-label {
+    font-size: 14px;
+    color: var(--muted);
+    letter-spacing: -0.01em;
+    line-height: 1.35;
+  }
+  .refine-label em {
+    font-style: normal;
+    color: var(--fg);
+  }
+
+  /* Segmented control */
+  .seg {
+    display: inline-flex;
+    background: rgba(245,242,235,0.06);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .seg button {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 450;
+    letter-spacing: -0.01em;
+    padding: 7px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: color 0.25s var(--ease), background 0.25s var(--ease), transform 0.2s var(--ease);
+    font-variant-numeric: tabular-nums;
+    min-width: 40px;
+  }
+  .seg button[aria-pressed="true"] {
+    background: rgba(245,242,235,0.14);
+    color: var(--fg);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  }
+  .seg button:active { transform: scale(0.97); }
+  .seg button:hover:not([aria-pressed="true"]) { color: var(--fg); }
+
+  /* Prose with scrub tokens */
+  .prose {
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--muted);
+    letter-spacing: -0.015em;
+    font-weight: 400;
+  }
+  .prose + .prose { margin-top: 14px; }
+  @media (min-width: 560px) {
+    .prose { font-size: 17px; }
+  }
+
+  /* Scrubbable number token */
+  .tok {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    vertical-align: baseline;
+    position: relative;
+    margin: 0 1px;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  .tok-val {
+    appearance: none;
+    border: none;
+    background: rgba(245,242,235,0.08);
+    color: var(--fg);
+    font: inherit;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    padding: 2px 8px;
+    border-radius: 6px;
+    cursor: ew-resize;
+    text-align: center;
+    min-width: 2.4em;
+    transition: background 0.25s var(--ease), box-shadow 0.25s var(--ease), transform 0.2s var(--ease);
+    outline: none;
+    width: auto;
+    field-sizing: content;
+  }
+  .tok-val:hover { background: rgba(245,242,235,0.14); }
+  .tok-val:focus {
+    background: rgba(245,242,235,0.16);
+    box-shadow: 0 0 0 2px rgba(245,242,235,0.18);
+    cursor: text;
+  }
+  .tok.scrubbing .tok-val {
+    background: rgba(245,242,235,0.2);
+    transform: scale(1.04);
+  }
+  .tok-unit {
+    font-size: 0.92em;
+    color: var(--fg);
+    font-weight: 450;
+    margin-left: 1px;
+    pointer-events: none;
+  }
+  .tok-step {
+    display: none;
+    appearance: none;
+    border: none;
+    background: rgba(245,242,235,0.08);
+    color: var(--muted);
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s var(--ease), color 0.2s var(--ease);
+    flex-shrink: 0;
+  }
+  .tok-step:active { background: rgba(245,242,235,0.18); color: var(--fg); }
+  @media (pointer: coarse) {
+    .tok { gap: 4px; }
+    .tok-step { display: inline-flex; }
+    .tok-val { padding: 4px 10px; min-height: 28px; }
+  }
+
+
+  /* Spec sheet rows for connectivity */
+  .spec {
+    display: grid;
+    gap: 12px;
+  }
+  .spec-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--muted);
+    letter-spacing: -0.01em;
+  }
+  .spec-line .tok { margin: 0; }
+
+  /* Hidden model inputs still drive math */
+  .refine-hidden { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; overflow: hidden; }
+
+
+  @media (max-width: 560px) {
+    .refine-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .tok { gap: 4px; }
+    .tok-step { display: inline-flex !important; }
+    .tok-val { padding: 4px 10px; min-height: 28px; }
+    .seg { width: 100%; }
+    .seg button { flex: 1; text-align: center; }
+    #gpuSeg { width: auto; }
+    #gpuSeg button { flex: 0 0 auto; min-width: 44px; }
+  }
 
   /* Soft stats row */
   .soft {
@@ -443,44 +635,116 @@
         <input type="range" id="ss" min="5" max="250" step="1" value="20"/>
       </div>
 
-      <details class="refine">
+      <details class="refine" id="refinePanel">
         <summary>Refine ···</summary>
         <div class="refine-body">
-          <div class="slider">
-            <div class="slider-head"><span class="slider-name">Orbital GW by 2028</span><span class="slider-val" id="v_ogw">2.8</span></div>
+          <!-- Hidden ranges keep model math unchanged -->
+          <div class="refine-hidden" aria-hidden="true">
             <input type="range" id="ogw" min="0" max="10" step="0.1" value="2.8"/>
-          </div>
-          <div class="slider">
-            <div class="slider-head"><span class="slider-name">Compute margin</span><span class="slider-val" id="v_margin">75%</span></div>
             <input type="range" id="margin" min="20" max="90" step="1" value="75"/>
-          </div>
-          <div class="slider">
-            <div class="slider-head"><span class="slider-name">GPU useful life</span><span class="slider-val" id="v_gpulife">5.0 yr</span></div>
             <input type="range" id="gpulife" min="3" max="8" step="0.5" value="5"/>
-          </div>
-          <div class="slider">
-            <div class="slider-head"><span class="slider-name">Starlink run-rate</span><span class="slider-val" id="v_slrev">$20B</span></div>
             <input type="range" id="slrev" min="5" max="50" step="1" value="20"/>
-          </div>
-          <div class="slider">
-            <div class="slider-head"><span class="slider-name">Rev per Starship flight / yr</span><span class="slider-val" id="v_revflight">$1.0B</span></div>
             <input type="range" id="revflight" min="0.2" max="5" step="0.1" value="1"/>
-          </div>
-          <div class="slider">
-            <div class="slider-head"><span class="slider-name">Satellite life</span><span class="slider-val" id="v_satlife">5.0 yr</span></div>
             <input type="range" id="satlife" min="3" max="8" step="0.5" value="5"/>
-          </div>
-          <div class="slider">
-            <div class="slider-head"><span class="slider-name">DTC vs Starlink (2029–30)</span><span class="slider-val" id="v_dtc">120%</span></div>
             <input type="range" id="dtc" min="50" max="200" step="5" value="120"/>
-          </div>
-          <div class="slider">
-            <div class="slider-head"><span class="slider-name">3-yr connectivity CapEx</span><span class="slider-val" id="v_slcapex">$20B</span></div>
             <input type="range" id="slcapex" min="5" max="40" step="1" value="20"/>
-          </div>
-          <div class="slider">
-            <div class="slider-head"><span class="slider-name">FY25 connectivity EBITDA</span><span class="slider-val" id="v_slebitda">$7.2B</span></div>
             <input type="range" id="slebitda" min="1" max="15" step="0.1" value="7.2"/>
+          </div>
+
+          <div class="refine-section">
+            <div class="refine-kicker">Scenario</div>
+            <div class="seg" role="group" aria-label="Scenario" id="scenarioSeg">
+              <button type="button" data-scenario="bear">Bear</button>
+              <button type="button" data-scenario="maguire" aria-pressed="true">Maguire</button>
+              <button type="button" data-scenario="bull">Bull</button>
+            </div>
+          </div>
+
+          <div class="refine-section">
+            <div class="refine-kicker">Compute</div>
+            <div class="refine-row">
+              <div class="refine-label">GPU useful life</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="seg" role="group" aria-label="GPU useful life" id="gpuSeg">
+                  <button type="button" data-gpu="4">4</button>
+                  <button type="button" data-gpu="5" aria-pressed="true">5</button>
+                  <button type="button" data-gpu="6">6</button>
+                  <button type="button" data-gpu="7">7</button>
+                </div>
+                <span class="tok-unit" style="color:var(--muted);font-size:13px;">yr</span>
+              </div>
+            </div>
+            <p class="prose">
+              Orbital capacity reaches
+              <span class="tok" data-bind="ogw" data-min="0" data-max="10" data-step="0.1" data-decimals="1" data-suffix=" GW">
+                <button type="button" class="tok-step" data-dir="-1" aria-label="Decrease">−</button>
+                <input class="tok-val" inputmode="decimal" aria-label="Orbital GW"/>
+                <button type="button" class="tok-step" data-dir="1" aria-label="Increase">+</button>
+              </span>
+              by 2028, at
+              <span class="tok" data-bind="margin" data-min="20" data-max="90" data-step="1" data-decimals="0" data-suffix="%">
+                <button type="button" class="tok-step" data-dir="-1" aria-label="Decrease">−</button>
+                <input class="tok-val" inputmode="numeric" aria-label="Compute margin"/>
+                <button type="button" class="tok-step" data-dir="1" aria-label="Increase">+</button>
+              </span>
+              margin.
+            </p>
+          </div>
+
+          <div class="refine-section">
+            <div class="refine-kicker">Starship &amp; Starlink</div>
+            <p class="prose">
+              Each Starship flight earns
+              <span class="tok" data-bind="revflight" data-min="0.2" data-max="5" data-step="0.1" data-decimals="1" data-prefix="$" data-suffix="B">
+                <button type="button" class="tok-step" data-dir="-1" aria-label="Decrease">−</button>
+                <input class="tok-val" inputmode="decimal" aria-label="Revenue per flight per year"/>
+                <button type="button" class="tok-step" data-dir="1" aria-label="Increase">+</button>
+              </span>
+              a year for
+              <span class="tok" data-bind="satlife" data-min="3" data-max="8" data-step="0.5" data-decimals="1">
+                <button type="button" class="tok-step" data-dir="-1" aria-label="Decrease">−</button>
+                <input class="tok-val" inputmode="decimal" aria-label="Satellite life"/>
+                <button type="button" class="tok-step" data-dir="1" aria-label="Increase">+</button>
+              </span>
+              years.
+            </p>
+            <p class="prose">
+              Starlink run-rate
+              <span class="tok" data-bind="slrev" data-min="5" data-max="50" data-step="1" data-decimals="0" data-prefix="$" data-suffix="B">
+                <button type="button" class="tok-step" data-dir="-1" aria-label="Decrease">−</button>
+                <input class="tok-val" inputmode="numeric" aria-label="Starlink run-rate"/>
+                <button type="button" class="tok-step" data-dir="1" aria-label="Increase">+</button>
+              </span>,
+              with DTC at
+              <span class="tok" data-bind="dtc" data-min="50" data-max="200" data-step="5" data-decimals="0" data-suffix="%">
+                <button type="button" class="tok-step" data-dir="-1" aria-label="Decrease">−</button>
+                <input class="tok-val" inputmode="numeric" aria-label="DTC vs Starlink"/>
+                <button type="button" class="tok-step" data-dir="1" aria-label="Increase">+</button>
+              </span>
+              of that by 2029–30.
+            </p>
+          </div>
+
+          <div class="refine-section">
+            <div class="refine-kicker">Connectivity check</div>
+            <div class="spec">
+              <div class="spec-line">
+                <span>3-year CapEx</span>
+                <span class="tok" data-bind="slcapex" data-min="5" data-max="40" data-step="1" data-decimals="0" data-prefix="$" data-suffix="B">
+                  <button type="button" class="tok-step" data-dir="-1" aria-label="Decrease">−</button>
+                  <input class="tok-val" inputmode="numeric" aria-label="Connectivity CapEx"/>
+                  <button type="button" class="tok-step" data-dir="1" aria-label="Increase">+</button>
+                </span>
+              </div>
+              <div class="spec-line">
+                <span>FY25 EBITDA</span>
+                <span class="tok" data-bind="slebitda" data-min="1" data-max="15" data-step="0.1" data-decimals="1" data-prefix="$" data-suffix="B">
+                  <button type="button" class="tok-step" data-dir="-1" aria-label="Decrease">−</button>
+                  <input class="tok-val" inputmode="decimal" aria-label="FY25 connectivity EBITDA"/>
+                  <button type="button" class="tok-step" data-dir="1" aria-label="Increase">+</button>
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </details>
@@ -588,24 +852,18 @@
 
   function setPct(id) {
     const n = el[id];
+    if (!n || n.type !== 'range') return;
     const pct = ((n.value - n.min) / (n.max - n.min)) * 100;
     n.style.setProperty('--pct', pct + '%');
   }
   function updateLabels() {
-    ['revgw','capexgw','gw','ss','ogw','margin','gpulife','slrev','revflight','satlife','dtc','slcapex','slebitda'].forEach(setPct);
+    ['revgw','capexgw','gw','ss'].forEach(setPct);
     document.getElementById('v_revgw').textContent = '$' + val('revgw') + 'B';
     document.getElementById('v_capexgw').textContent = '$' + val('capexgw') + 'B';
     document.getElementById('v_gw').textContent = val('gw').toFixed(1);
     document.getElementById('v_ss').textContent = String(Math.round(val('ss')));
-    document.getElementById('v_ogw').textContent = val('ogw').toFixed(1);
-    document.getElementById('v_margin').textContent = val('margin') + '%';
-    document.getElementById('v_gpulife').textContent = val('gpulife').toFixed(1) + ' yr';
-    document.getElementById('v_slrev').textContent = '$' + val('slrev') + 'B';
-    document.getElementById('v_revflight').textContent = '$' + val('revflight').toFixed(1) + 'B';
-    document.getElementById('v_satlife').textContent = val('satlife').toFixed(1) + ' yr';
-    document.getElementById('v_dtc').textContent = Math.round(val('dtc')) + '%';
-    document.getElementById('v_slcapex').textContent = '$' + val('slcapex') + 'B';
-    document.getElementById('v_slebitda').textContent = '$' + val('slebitda').toFixed(1) + 'B';
+    syncTokensFromModel();
+    syncSegmentsFromModel();
   }
 
   function fmtB(x) {
@@ -791,6 +1049,199 @@
 
     // soft vignette bottom blend already from bg
     requestAnimationFrame(frame);
+  }
+
+
+  // —— Refine UI: tokens, segments, scenarios ——
+  const SCENARIOS = {
+    bear:    { ogw: 1.5, margin: 60, gpulife: 4, slrev: 15, revflight: 0.7, satlife: 4, dtc: 100, slcapex: 24, slebitda: 6.0 },
+    maguire: { ogw: 2.8, margin: 75, gpulife: 5, slrev: 20, revflight: 1.0, satlife: 5, dtc: 120, slcapex: 20, slebitda: 7.2 },
+    bull:    { ogw: 4.0, margin: 80, gpulife: 6, slrev: 28, revflight: 1.5, satlife: 6, dtc: 150, slcapex: 18, slebitda: 9.0 },
+  };
+  let activeScenario = 'maguire';
+  let tokenSyncing = false;
+
+  function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+  function roundToStep(v, step) {
+    const n = Math.round(v / step) * step;
+    const decimals = (String(step).split('.')[1] || '').length;
+    return parseFloat(n.toFixed(decimals));
+  }
+
+  function formatTok(tok, v) {
+    const dec = parseInt(tok.dataset.decimals || '0', 10);
+    const prefix = tok.dataset.prefix || '';
+    const suffix = tok.dataset.suffix || '';
+    const num = dec > 0 ? v.toFixed(dec) : String(Math.round(v));
+    return prefix + num + suffix;
+  }
+
+  function parseTokInput(tok, raw) {
+    let s = String(raw).replace(/[^0-9.\-]/g, '');
+    let v = parseFloat(s);
+    if (!isFinite(v)) return null;
+    const min = parseFloat(tok.dataset.min);
+    const max = parseFloat(tok.dataset.max);
+    const step = parseFloat(tok.dataset.step || '1');
+    return roundToStep(clamp(v, min, max), step);
+  }
+
+  function setModel(id, v, { fromScenario } = {}) {
+    if (!el[id]) return;
+    el[id].value = v;
+    if (!fromScenario) {
+      // mark scenario custom if refine drifts from preset
+      const preset = SCENARIOS[activeScenario];
+      if (preset && id in preset && Math.abs(preset[id] - v) > 1e-6) {
+        activeScenario = null;
+        document.querySelectorAll('#scenarioSeg button').forEach(b => b.setAttribute('aria-pressed', 'false'));
+      }
+    }
+  }
+
+  function syncTokensFromModel() {
+    if (tokenSyncing) return;
+    tokenSyncing = true;
+    document.querySelectorAll('.tok[data-bind]').forEach(tok => {
+      const id = tok.dataset.bind;
+      const input = tok.querySelector('.tok-val');
+      if (!input || document.activeElement === input) return;
+      input.value = formatTok(tok, val(id));
+    });
+    tokenSyncing = false;
+  }
+
+  function syncSegmentsFromModel() {
+    const g = val('gpulife');
+    document.querySelectorAll('#gpuSeg button').forEach(b => {
+      b.setAttribute('aria-pressed', String(parseFloat(b.dataset.gpu) === g));
+    });
+    if (activeScenario) {
+      document.querySelectorAll('#scenarioSeg button').forEach(b => {
+        b.setAttribute('aria-pressed', String(b.dataset.scenario === activeScenario));
+      });
+    }
+  }
+
+  function applyScenario(name) {
+    const s = SCENARIOS[name];
+    if (!s) return;
+    activeScenario = name;
+    Object.keys(s).forEach(k => setModel(k, s[k], { fromScenario: true }));
+    document.querySelectorAll('#scenarioSeg button').forEach(b => {
+      b.setAttribute('aria-pressed', String(b.dataset.scenario === name));
+    });
+    recalc();
+  }
+
+  document.querySelectorAll('#scenarioSeg button').forEach(btn => {
+    btn.addEventListener('click', () => applyScenario(btn.dataset.scenario));
+  });
+
+  document.querySelectorAll('#gpuSeg button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const g = parseFloat(btn.dataset.gpu);
+      setModel('gpulife', g);
+      document.querySelectorAll('#gpuSeg button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+      // light haptic if available
+      if (navigator.vibrate) navigator.vibrate(8);
+      recalc();
+    });
+  });
+
+  // Token scrubbing + edit
+  document.querySelectorAll('.tok[data-bind]').forEach(tok => {
+    const input = tok.querySelector('.tok-val');
+    const id = tok.dataset.bind;
+    const min = parseFloat(tok.dataset.min);
+    const max = parseFloat(tok.dataset.max);
+    const step = parseFloat(tok.dataset.step || '1');
+    let dragging = false;
+    let startX = 0;
+    let startVal = 0;
+    let moved = false;
+
+    function commit(v) {
+      v = roundToStep(clamp(v, min, max), step);
+      setModel(id, v);
+      input.value = formatTok(tok, v);
+      if (navigator.vibrate) navigator.vibrate(4);
+      recalc();
+    }
+
+    tok.querySelectorAll('.tok-step').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const dir = parseInt(btn.dataset.dir, 10);
+        commit(val(id) + dir * step);
+      });
+    });
+
+    input.addEventListener('focus', () => {
+      // show raw number while editing
+      const v = val(id);
+      const dec = parseInt(tok.dataset.decimals || '0', 10);
+      input.value = dec > 0 ? v.toFixed(dec) : String(Math.round(v));
+      input.select();
+    });
+    input.addEventListener('blur', () => {
+      const parsed = parseTokInput(tok, input.value);
+      if (parsed == null) { input.value = formatTok(tok, val(id)); return; }
+      commit(parsed);
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { input.blur(); e.preventDefault(); }
+      if (e.key === 'Escape') { input.value = formatTok(tok, val(id)); input.blur(); }
+      if (e.key === 'ArrowUp') { e.preventDefault(); commit(val(id) + step); input.value = (tok.dataset.prefix ? '' : '') + (parseInt(tok.dataset.decimals||'0',10)>0 ? val(id).toFixed(parseInt(tok.dataset.decimals,10)) : Math.round(val(id))); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); commit(val(id) - step); }
+    });
+
+    function onPointerDown(e) {
+      if (e.target.classList.contains('tok-step')) return;
+      if (e.target === input && document.activeElement === input) return;
+      // Don't start scrub if focusing for type — only on drag
+      dragging = true;
+      moved = false;
+      startX = e.clientX ?? (e.touches && e.touches[0].clientX) ?? 0;
+      startVal = val(id);
+      tok.classList.add('scrubbing');
+      try { tok.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault();
+    }
+    function onPointerMove(e) {
+      if (!dragging) return;
+      const x = e.clientX ?? (e.touches && e.touches[0].clientX) ?? startX;
+      const dx = x - startX;
+      if (Math.abs(dx) > 3) moved = true;
+      // ~1 step per 8px, accelerate with distance
+      const steps = dx / 8;
+      const next = startVal + steps * step;
+      const v = roundToStep(clamp(next, min, max), step);
+      setModel(id, v);
+      input.value = formatTok(tok, v);
+      recalc();
+    }
+    function onPointerUp(e) {
+      if (!dragging) return;
+      dragging = false;
+      tok.classList.remove('scrubbing');
+      try { tok.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (!moved) {
+        // tap → focus for typing
+        input.focus();
+      }
+    }
+    tok.addEventListener('pointerdown', onPointerDown);
+    tok.addEventListener('pointermove', onPointerMove);
+    tok.addEventListener('pointerup', onPointerUp);
+    tok.addEventListener('pointercancel', onPointerUp);
+  });
+
+  // Open refine for deep-links / screenshots
+  if (new URLSearchParams(location.search).has('refine')) {
+    document.getElementById('refinePanel').open = true;
   }
 
   // Events
