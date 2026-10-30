@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>SpaceX model playground — Maguire + payback lens</title>
+<meta name="description" content="Interactive SpaceX financial model based on Shaun Maguire's public article. Not financial advice. Built by @kotha2barta."/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="SpaceX model playground"/>
+<meta name="twitter:description" content="Play with Maguire's SpaceX model: rev/GW, CapEx/GW coupling, Starship economics, and AI payback vs GPU life."/>
+<meta property="og:title" content="SpaceX model playground"/>
+<meta property="og:description" content="Interactive calculator from Shaun Maguire's public SpaceX article + payback lens. Not financial advice."/>
+<style>
+  :root {
+    --bg: #0b0f14;
+    --panel: #121820;
+    --panel2: #18202b;
+    --border: #2a3544;
+    --text: #e8eef6;
+    --muted: #93a0b3;
+    --accent: #5b9fff;
+    --good: #3ecf8e;
+    --warn: #f0b429;
+    --bad: #ff6b6b;
+    --space: #7aa2ff;
+    --conn: #3ecf8e;
+    --si: #c084fc;
+    --capex: #f0b429;
+    --radius: 14px;
+    --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
+  body { line-height: 1.45; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 16px 14px 48px; }
+  header { margin-bottom: 16px; }
+  h1 { font-size: 1.35rem; margin: 0 0 6px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 0.92rem; margin: 0 0 10px; }
+  .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .badge { font-size: 0.75rem; color: var(--muted); background: var(--panel); border: 1px solid var(--border); padding: 4px 10px; border-radius: 999px; }
+  .badge a { color: var(--accent); text-decoration: none; }
+  .callout {
+    background: #1a2330; border: 1px solid #334155; border-left: 3px solid var(--warn);
+    padding: 10px 12px; border-radius: 10px; font-size: 0.85rem; color: #d7e0ec; margin: 12px 0 18px;
+  }
+  .grid { display: grid; gap: 12px; }
+  @media (min-width: 720px) {
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px;
+  }
+  .card h2 { font-size: 0.95rem; margin: 0 0 10px; color: var(--text); }
+  .card h3 { font-size: 0.8rem; margin: 14px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  label.ctrl { display: block; margin-bottom: 12px; }
+  label.ctrl .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  label.ctrl .name { font-size: 0.82rem; color: #c9d4e3; }
+  label.ctrl .val { font-size: 0.9rem; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--accent); }
+  label.ctrl .hint { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+  input[type=range] {
+    width: 100%; accent-color: var(--accent); height: 28px; margin: 0;
+  }
+  input[type=number] {
+    width: 100%; background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; font-size: 0.95rem; font-variant-numeric: tabular-nums;
+  }
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 12px; background: var(--panel2); border-radius: 10px; border: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .toggle-row .lab { font-size: 0.85rem; }
+  .toggle-row .lab small { display: block; color: var(--muted); font-size: 0.72rem; margin-top: 2px; }
+  .switch {
+    position: relative; width: 46px; height: 26px; flex-shrink: 0;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch span {
+    position: absolute; inset: 0; background: #334155; border-radius: 999px; cursor: pointer; transition: .2s;
+  }
+  .switch span:before {
+    content: ""; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px;
+    background: white; border-radius: 50%; transition: .2s;
+  }
+  .switch input:checked + span { background: var(--accent); }
+  .switch input:checked + span:before { transform: translateX(20px); }
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media (min-width: 560px) { .metrics { grid-template-columns: 1fr 1fr 1fr 1fr; } }
+  .metric {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 10px;
+  }
+  .metric .k { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .metric .v { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .metric .d { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+  .metric.good .v { color: var(--good); }
+  .metric.warn .v { color: var(--warn); }
+  .metric.bad .v { color: var(--bad); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 6px 4px; border-bottom: 1px solid var(--border); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; }
+  .seg-space { color: var(--space); }
+  .seg-conn { color: var(--conn); }
+  .seg-si { color: var(--si); }
+  .chart-wrap { position: relative; width: 100%; height: 220px; margin-top: 4px; }
+  canvas { width: 100%; height: 100%; display: block; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 14px; margin-top: 8px; font-size: 0.75rem; color: var(--muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  button {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px; font-size: 0.82rem; cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: #041018; border-color: transparent; font-weight: 600; }
+  button:active { transform: scale(0.98); }
+  footer { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 0.78rem; color: var(--muted); }
+  footer a { color: var(--accent); }
+  .src { margin-top: 10px; font-size: 0.75rem; color: var(--muted); }
+  .src a { color: var(--accent); }
+  details { margin-top: 8px; }
+  details summary { cursor: pointer; color: var(--accent); font-size: 0.82rem; }
+  details .body { margin-top: 8px; font-size: 0.8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>SpaceX model playground</h1>
+    <p class="sub">Play with Shaun Maguire’s public bottoms-up forecast (50th percentile through 2028) and a payback lens vs GPU life. Numbers update live — nothing is saved.</p>
+    <div class="badge-row">
+      <span class="badge">Source: <a href="https://x.com/shaunmmaguire/status/2116260821080973679" target="_blank" rel="noopener">Maguire article</a></span>
+      <span class="badge">Built by <a href="https://x.com/kotha2barta" target="_blank" rel="noopener">@kotha2barta</a></span>
+      <span class="badge">Not financial advice</span>
+    </div>
+  </header>
+
+  <div class="callout">
+    <strong>Disclaimer.</strong> Not financial advice. Based on Shaun Maguire’s public X article (Oct 30, 2026). Maguire discloses Sequoia holds a large SpaceX position and that he is extremely biased. Past performance is not indicative of future results. Defaults below are labeled with sources; wide error bars apply, especially rev/GW, CapEx/GW, and Terafab.
+  </div>
+
+  <div class="grid grid-2">
+    <section class="card">
+      <h2>Inputs</h2>
+
+      <div class="toggle-row">
+        <div class="lab">Couple rev/GW ↔ CapEx/GW
+          <small>Maguire: “coupled constants” — if rev/GW falls, CapEx/GW falls roughly in proportion</small>
+        </div>
+        <label class="switch"><input type="checkbox" id="couple" checked/><span></span></label>
+      </div>
+
+      <h3>Compute (AI / SI)</h3>
+      <label class="ctrl">
+        <div class="top"><span class="name">Terrestrial GW by end-2028</span><span class="val" id="v_gw">21.0 GW</span></div>
+        <input type="range" id="gw" min="1" max="40" step="0.5" value="21"/>
+        <div class="hint">Maguire model table: 2.5 → 10.2 → 21.0 GW (FY26–28 EOY)</div>
+      </label>
+      <label class="ctrl">
+        <div class="top"><span class="name">Orbital GW by end-2028</span><span class="val" id="v_ogw">2.8 GW</span></div>
+        <input type="range" id="ogw" min="0" max="10" step="0.1" value="2.8"/>
+        <div class="hint">Maguire model: 0 → 0.15 → 2.8 GW (shows up from 2027)</div>
+      </label>
+      <label class="ctrl">
+        <div class="top"><span class="name">Annual rev / GW</span><span class="val" id="v_revgw">$40B</span></div>
+        <input type="range" id="revgw" min="5" max="60" step="1" value="40"/>
+        <div class="hint">Maguire model assumption row: stabilizes at $40,000 ($ millions) = $40B/GW/yr</div>
+      </label>
+      <label class="ctrl">
+        <div class="top"><span class="name">CapEx / GW</span><span class="val" id="v_capexgw">$30B</span></div>
+        <input type="range" id="capexgw" min="8" max="60" step="1" value="30"/>
+        <div class="hint">Maguire model: declines toward $30B/GW by late 2028; text: unlikely &lt;$20B within ~4 yrs; floor scenario ~$10B</div>
+      </label>
+      <label class="ctrl">
+        <div class="top"><span class="name">Utilization / EBITDA margin on compute rev</span><span class="val" id="v_margin">75%</span></div>
+        <input type="range" id="margin" min="20" max="90" step="1" value="75"/>
+        <div class="hint">User-adjustable. Maguire FY28 Adj. EBITDA / rev ≈ 73% company-wide ($536B / $731B) — not compute-specific</div>
+      </label>
+      <label class="ctrl">
+        <div class="top"><span class="name">GPU useful life (years)</span><span class="val" id="v_gpulife">5.0 yr</span></div>
+        <input type="range" id="gpulife" min="3" max="8" step="0.5" value="5"/>
+        <div class="hint">Our lens: industry write-off window ~4–6 years (public neocloud / hyperscaler practice)</div>
+      </label>
+
+      <h3>Connectivity / Starship</h3>
+      <label class="ctrl">
+        <div class="top"><span class="name">Starlink run-rate revenue</span><span class="val" id="v_slrev">$20B/yr</span></div>
+        <input type="range" id="slrev" min="5" max="50" step="1" value="20"/>
+        <div class="hint">Maguire article: current constellation ~$20B/yr on ~400 Falcon 9 launches</div>
+      </label>
+      <label class="ctrl">
+        <div class="top"><span class="name">Starship flights / year (steady)</span><span class="val" id="v_ss">20</span></div>
+        <input type="range" id="ss" min="5" max="250" step="1" value="20"/>
+        <div class="hint">Article: ~20 Starship flights support ~$20B/yr. Maguire FY28 total flights = 250 (ramp)</div>
+      </label>
+      <label class="ctrl">
+        <div class="top"><span class="name">Revenue per Starship flight / year</span><span class="val" id="v_revflight">$1.0B</span></div>
+        <input type="range" id="revflight" min="0.2" max="5" step="0.1" value="1"/>
+        <div class="hint">Article: ~$1B/yr per flight × ~5 yr life ≈ $5B lifetime revenue per flight</div>
+      </label>
+      <label class="ctrl">
+        <div class="top"><span class="name">Satellite / network life (years)</span><span class="val" id="v_satlife">5.0 yr</span></div>
+        <input type="range" id="satlife" min="3" max="8" step="0.5" value="5"/>
+        <div class="hint">Maguire article lifetime assumption</div>
+      </label>
+      <label class="ctrl">
+        <div class="top"><span class="name">Direct-to-Cell vs Starlink (2029–30)</span><span class="val" id="v_dtc">120%</span></div>
+        <input type="range" id="dtc" min="50" max="200" step="5" value="120"/>
+        <div class="hint">Maguire wager: DTC does more revenue than Starlink by 2029 or 2030. Slider = DTC as % of Starlink</div>
+      </label>
+
+      <h3>Our Starlink payback check</h3>
+      <label class="ctrl">
+        <div class="top"><span class="name">3-yr connectivity CapEx</span><span class="val" id="v_slcapex">$20B</span></div>
+        <input type="range" id="slcapex" min="5" max="40" step="1" value="20"/>
+        <div class="hint">Public reporting: ~$20B connectivity spend over ~3 years (Reuters / filings coverage)</div>
+      </label>
+      <label class="ctrl">
+        <div class="top"><span class="name">FY25 connectivity segment EBITDA</span><span class="val" id="v_slebitda">$7.2B</span></div>
+        <input type="range" id="slebitda" min="1" max="15" step="0.1" value="7.2"/>
+        <div class="hint">Public reporting: ~$7.2B FY25 segment EBITDA</div>
+      </label>
+
+      <div class="btn-row">
+        <button class="primary" id="reset">Reset to Maguire defaults</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Live outputs</h2>
+      <div class="metrics" id="metrics"></div>
+
+      <h3 style="margin-top:16px">Revenue by segment (illustrative, $B)</h3>
+      <div style="overflow-x:auto">
+        <table id="revtable">
+          <thead>
+            <tr><th>Segment</th><th>FY2026</th><th>FY2027</th><th>FY2028</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="hint" style="font-size:0.72rem;color:var(--muted);margin:6px 0 0">
+        FY26–28 Maguire baseline totals: Space $5.2 / $9.4 / $17.3B · Connectivity $19.1 / $40.6 / $88.5B · SI $27.1 / $223.8 / $625.2B · Total $51.5 / $273.8 / $731.1B.
+        Compute SI here scales with your GW × rev/GW; other lines keep Maguire’s table mix unless you move connectivity sliders.
+      </p>
+
+      <h3>Cumulative CapEx vs cash generation (compute)</h3>
+      <div class="chart-wrap"><canvas id="chart" width="800" height="220"></canvas></div>
+      <div class="legend">
+        <span><i style="background:var(--capex)"></i>Cumulative CapEx</span>
+        <span><i style="background:var(--si)"></i>Cumulative EBITDA (compute)</span>
+        <span><i style="background:var(--good)"></i>Payback crossing</span>
+      </div>
+
+      <h3>Payback scorecard</h3>
+      <div id="scorecard"></div>
+    </section>
+  </div>
+
+  <details>
+    <summary>Default sources &amp; what we did not invent</summary>
+    <div class="body">
+      <p><strong>From Maguire’s article / attached model table (read from published images):</strong></p>
+      <ul>
+        <li>FY2028 total revenue $731.1B; Adj. EBITDA $536.2B; CapEx $369.0B; change in cash +$114.9B</li>
+        <li>Terrestrial compute EOY GW: 2.5 / 10.2 / 21.0 (FY26–28); Orbital: 0 / 0.15 / 2.8</li>
+        <li>Annual rev/GW stabilizes at $40B; CapEx/GW declines toward $30B by late 2028</li>
+        <li>Starlink ~$20B/yr on ~400 F9 launches; 1 Starship ≈ 20 F9 → ~$1B/yr per flight; ~5 yr life → ~$5B lifetime</li>
+        <li>rev/GW and CapEx/GW are coupled constants; CapEx/GW unlikely &lt;$20B in ~4 years; $10B is a stress case</li>
+        <li>DTC may exceed Starlink by 2029–30; Terafab / orbital compute widen error bars; orbital ramps from 2029 in narrative</li>
+      </ul>
+      <p><strong>Our lens (labeled, adjustable):</strong> payback years = CapEx/GW ÷ (rev/GW × margin); compare to GPU life 4–6 yrs. Starlink check: ~$20B 3-yr connectivity CapEx vs ~$7.2B FY25 segment EBITDA ≈ ~2.8 yr simple payback on that stock (≈2 yr per-sat math elsewhere).</p>
+      <p>Wide error bars. Macro can move rev/GW a lot. This page is a toy for debate, not a forecast.</p>
+    </div>
+  </details>
+
+  <footer>
+    <p>Not financial advice. Based on <a href="https://x.com/shaunmmaguire/status/2116260821080973679" target="_blank" rel="noopener">Shaun Maguire’s public article</a> “People don’t understand SpaceX.” Built by <a href="https://x.com/kotha2barta" target="_blank" rel="noopener">@kotha2barta</a>.</p>
+    <p class="src">Open source: this repo · Maguire discloses Sequoia’s SpaceX position and extreme bias.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  const BASE = {
+    revgw: 40,
+    capexgw: 30,
+    gw: 21,
+    ogw: 2.8,
+    margin: 75,
+    gpulife: 5,
+    slrev: 20,
+    ss: 20,
+    revflight: 1,
+    satlife: 5,
+    dtc: 120,
+    slcapex: 20,
+    slebitda: 7.2,
+    // Maguire table segment baselines ($B)
+    space: [5.239, 9.389, 17.345],
+    conn: [19.094, 40.567, 88.538],
+    si: [27.150, 223.802, 625.228],
+    total: [51.482, 273.757, 731.111],
+    // Maguire EOY terrestrial GW path
+    gwPath: [2.5, 10.2, 21.0],
+    ogwPath: [0, 0.15, 2.8],
+  };
+
+  const ids = ['couple','gw','ogw','revgw','capexgw','margin','gpulife','slrev','ss','revflight','satlife','dtc','slcapex','slebitda'];
+  const el = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
+  let syncing = false;
+  let coupleRatio = BASE.capexgw / BASE.revgw; // 30/40 = 0.75
+
+  function fmtB(x) {
+    if (Math.abs(x) >= 100) return '$' + x.toFixed(0) + 'B';
+    if (Math.abs(x) >= 10) return '$' + x.toFixed(1) + 'B';
+    return '$' + x.toFixed(2) + 'B';
+  }
+  function fmtY(x) {
+    if (!isFinite(x) || x > 99) return '>99 yr';
+    return x.toFixed(1) + ' yr';
+  }
+  function val(id) { return parseFloat(el[id].value); }
+
+  function updateLabels() {
+    document.getElementById('v_gw').textContent = val('gw').toFixed(1) + ' GW';
+    document.getElementById('v_ogw').textContent = val('ogw').toFixed(1) + ' GW';
+    document.getElementById('v_revgw').textContent = '$' + val('revgw') + 'B';
+    document.getElementById('v_capexgw').textContent = '$' + val('capexgw') + 'B';
+    document.getElementById('v_margin').textContent = val('margin') + '%';
+    document.getElementById('v_gpulife').textContent = val('gpulife').toFixed(1) + ' yr';
+    document.getElementById('v_slrev').textContent = '$' + val('slrev') + 'B/yr';
+    document.getElementById('v_ss').textContent = String(Math.round(val('ss')));
+    document.getElementById('v_revflight').textContent = '$' + val('revflight').toFixed(1) + 'B';
+    document.getElementById('v_satlife').textContent = val('satlife').toFixed(1) + ' yr';
+    document.getElementById('v_dtc').textContent = Math.round(val('dtc')) + '%';
+    document.getElementById('v_slcapex').textContent = '$' + val('slcapex') + 'B';
+    document.getElementById('v_slebitda').textContent = '$' + val('slebitda').toFixed(1) + 'B';
+  }
+
+  function compute() {
+    const revgw = val('revgw');
+    const capexgw = val('capexgw');
+    const gw = val('gw');
+    const ogw = val('ogw');
+    const margin = val('margin') / 100;
+    const gpulife = val('gpulife');
+    const slrev = val('slrev');
+    const ss = val('ss');
+    const revflight = val('revflight');
+    const satlife = val('satlife');
+    const dtc = val('dtc') / 100;
+    const slcapex = val('slcapex');
+    const slebitda = val('slebitda');
+
+    const totalGW = gw + ogw;
+    const annualComputeRev = totalGW * revgw;
+    const annualComputeEbitda = annualComputeRev * margin;
+    const totalCapex = totalGW * capexgw;
+    const payback = annualComputeEbitda > 0 ? capexgw / (revgw * margin) : Infinity;
+    // Simple path: build GW linearly over 3 years to target
+    const years = [2026, 2027, 2028];
+    const gwScale = gw / BASE.gwPath[2];
+    const ogwScale = BASE.ogwPath[2] > 0 ? ogw / BASE.ogwPath[2] : 1;
+    const gwEOY = BASE.gwPath.map(g => g * gwScale);
+    const ogwEOY = BASE.ogwPath.map(g => g * ogwScale);
+
+    // SI compute revenue ≈ average GW in year * rev/GW (midpoint of start/end)
+    // Maguire SI includes Grok/Cursor/Terafab too — we scale the compute-heavy SI with GW,
+    // and keep a residual non-compute SI share from Maguire's mix.
+    // From Maguire Q4'28: Terr compute 180B of SI 201B ≈ 90% compute-ish at peak.
+    // For annual: use GW_avg * revgw as "compute SI", residual keeps Maguire non-compute share.
+    const maguireComputeSI = BASE.gwPath.map((g, i) => {
+      const avg = (i === 0 ? g / 2 : (BASE.gwPath[i-1] + g) / 2) + (i === 0 ? 0 : (BASE.ogwPath[i-1] + BASE.ogwPath[i]) / 2);
+      // Maguire's implied at $40B/GW — but early years have lower rev/GW in his table (ramps to 40k)
+      return avg * 40; // baseline compute dollars at his $40B assumption
+    });
+    // Residual SI = Maguire SI - implied compute at $40
+    const residualSI = BASE.si.map((s, i) => Math.max(0, s - maguireComputeSI[i]));
+
+    const userComputeSI = gwEOY.map((g, i) => {
+      const prevG = i === 0 ? 0 : gwEOY[i-1];
+      const prevO = i === 0 ? 0 : ogwEOY[i-1];
+      const avg = (prevG + g) / 2 + (prevO + ogwEOY[i]) / 2;
+      return avg * revgw;
+    });
+    const siOut = userComputeSI.map((c, i) => c + residualSI[i]);
+
+    // Connectivity: scale Starlink from slider vs Maguire's ~$20B "current" toward his FY path,
+    // and apply DTC multiple in 2029 lens; for 26-28 keep Maguire connectivity path scaled by slrev/20
+    const connScale = slrev / 20;
+    const connOut = BASE.conn.map(c => c * connScale);
+    const spaceOut = BASE.space.slice();
+    const totalOut = years.map((_, i) => spaceOut[i] + connOut[i] + siOut[i]);
+
+    // Starship economics
+    const lifetimePerFlight = revflight * satlife;
+    const starlinkFromFlights = ss * revflight;
+    const dtc2030 = slrev * dtc;
+
+    // Starlink payback check
+    const slPayback = slebitda > 0 ? slcapex / slebitda : Infinity;
+
+    // Cumulative series for chart (year 0..5): deploy GW linearly, earn each year on installed base
+    const n = 6;
+    const cumCapex = [];
+    const cumEbitda = [];
+    let cCap = 0, cEb = 0;
+    for (let t = 0; t < n; t++) {
+      const deployed = totalGW * ((t + 1) / 3); // finish build by year 3
+      const deployedClamped = Math.min(totalGW, deployed);
+      const capexThis = t < 3 ? (totalGW / 3) * capexgw : 0;
+      cCap += capexThis;
+      // EBITDA on average deployed during year
+      const start = Math.min(totalGW, totalGW * (t / 3));
+      const end = deployedClamped;
+      const avgDep = (start + end) / 2;
+      cEb += avgDep * revgw * margin;
+      cumCapex.push(cCap);
+      cumEbitda.push(cEb);
+    }
+
+    return {
+      revgw, capexgw, gw, ogw, totalGW, margin, gpulife, payback,
+      annualComputeRev, annualComputeEbitda, totalCapex,
+      spaceOut, connOut, siOut, totalOut, years,
+      lifetimePerFlight, starlinkFromFlights, dtc2030, slPayback,
+      cumCapex, cumEbitda, residualSI, userComputeSI
+    };
+  }
+
+  function renderMetrics(m) {
+    const pbClass = m.payback <= m.gpulife ? 'good' : (m.payback <= m.gpulife * 1.25 ? 'warn' : 'bad');
+    const html = `
+      <div class="metric"><div class="k">Compute rev / yr</div><div class="v">${fmtB(m.annualComputeRev)}</div><div class="d">${m.totalGW.toFixed(1)} GW × $${m.revgw}B</div></div>
+      <div class="metric"><div class="k">Compute CapEx</div><div class="v">${fmtB(m.totalCapex)}</div><div class="d">${m.totalGW.toFixed(1)} GW × $${m.capexgw}B</div></div>
+      <div class="metric ${pbClass}"><div class="k">AI payback / GW</div><div class="v">${fmtY(m.payback)}</div><div class="d">vs ${m.gpulife.toFixed(1)} yr GPU life</div></div>
+      <div class="metric"><div class="k">FY28 total rev*</div><div class="v">${fmtB(m.totalOut[2])}</div><div class="d">*scaled toy from Maguire mix</div></div>
+      <div class="metric"><div class="k">Lifetime / Starship flight</div><div class="v">${fmtB(m.lifetimePerFlight)}</div><div class="d">$${val('revflight').toFixed(1)}B/yr × ${val('satlife').toFixed(1)} yr</div></div>
+      <div class="metric"><div class="k">DTC ~2030 run-rate</div><div class="v">${fmtB(m.dtc2030)}</div><div class="d">${Math.round(val('dtc'))}% of Starlink slider</div></div>
+      <div class="metric ${m.slPayback <= 3 ? 'good' : 'warn'}"><div class="k">Starlink stock payback</div><div class="v">${fmtY(m.slPayback)}</div><div class="d">CapEx ÷ FY25 seg. EBITDA</div></div>
+      <div class="metric"><div class="k">Flights for $20B/yr</div><div class="v">${(20 / Math.max(0.01, val('revflight'))).toFixed(0)}</div><div class="d">article: ~20 at $1B/flight/yr</div></div>
+    `;
+    document.getElementById('metrics').innerHTML = html;
+  }
+
+  function renderTable(m) {
+    const rows = [
+      ['Space', m.spaceOut, 'seg-space'],
+      ['Connectivity', m.connOut, 'seg-conn'],
+      ['SI (incl. compute)', m.siOut, 'seg-si'],
+      ['Total', m.totalOut, ''],
+    ];
+    const tb = document.querySelector('#revtable tbody');
+    tb.innerHTML = rows.map(([name, arr, cls]) => {
+      const bold = name === 'Total' ? 'font-weight:700' : '';
+      return `<tr style="${bold}"><td class="${cls}">${name}</td><td>${arr[0].toFixed(1)}</td><td>${arr[1].toFixed(1)}</td><td>${arr[2].toFixed(1)}</td></tr>`;
+    }).join('');
+  }
+
+  function renderScorecard(m) {
+    const beats = m.payback <= m.gpulife;
+    const coupleOn = el.couple.checked;
+    document.getElementById('scorecard').innerHTML = `
+      <div class="callout" style="border-left-color:${beats ? 'var(--good)' : 'var(--bad)'};margin:0">
+        <strong>Payback lens:</strong> At $${m.capexgw}B CapEx/GW and $${m.revgw}B rev/GW with ${(m.margin*100).toFixed(0)}% margin,
+        compute pays back in <strong>${fmtY(m.payback)}</strong>.
+        That is <strong>${beats ? 'inside' : 'outside'}</strong> a ${m.gpulife.toFixed(1)}-year GPU life.
+        Coupling is <strong>${coupleOn ? 'ON' : 'OFF'}</strong>${coupleOn ? ` (CapEx/GW tracks rev/GW at ratio ${(m.capexgw/m.revgw).toFixed(2)})` : ''}.
+        Starlink stock check: <strong>${fmtY(m.slPayback)}</strong> on your CapEx/EBITDA inputs (article/unit math ~2 yr per sat).
+      </div>
+    `;
+  }
+
+  function drawChart(m) {
+    const canvas = document.getElementById('chart');
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.clientWidth || 800;
+    const cssH = 220;
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = cssW, H = cssH;
+    ctx.clearRect(0, 0, W, H);
+    const pad = { l: 36, r: 12, t: 12, b: 28 };
+    const seriesMax = Math.max(...m.cumCapex, ...m.cumEbitda, 1);
+    const n = m.cumCapex.length;
+    const xAt = i => pad.l + (i / (n - 1)) * (W - pad.l - pad.r);
+    const yAt = v => pad.t + (1 - v / seriesMax) * (H - pad.t - pad.b);
+
+    // grid
+    ctx.strokeStyle = '#243041';
+    ctx.lineWidth = 1;
+    for (let g = 0; g <= 4; g++) {
+      const y = pad.t + (g / 4) * (H - pad.t - pad.b);
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+      const val = seriesMax * (1 - g / 4);
+      ctx.fillStyle = '#93a0b3';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'right';
+      ctx.fillText(val >= 100 ? val.toFixed(0) : val.toFixed(1), pad.l - 4, y + 3);
+    }
+
+    function strokeSeries(arr, color, width) {
+      ctx.beginPath();
+      arr.forEach((v, i) => {
+        const x = xAt(i), y = yAt(v);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.stroke();
+    }
+    strokeSeries(m.cumCapex, '#f0b429', 2.5);
+    strokeSeries(m.cumEbitda, '#c084fc', 2.5);
+
+    // payback crossing marker
+    let cross = null;
+    for (let i = 1; i < n; i++) {
+      if (m.cumEbitda[i-1] < m.cumCapex[i-1] && m.cumEbitda[i] >= m.cumCapex[i]) {
+        const t0 = i - 1, t1 = i;
+        const dE = m.cumEbitda[t1] - m.cumEbitda[t0];
+        const dC = m.cumCapex[t1] - m.cumCapex[t0];
+        const denom = (dE - dC) || 1e-9;
+        const f = (m.cumCapex[t0] - m.cumEbitda[t0]) / denom;
+        cross = t0 + Math.max(0, Math.min(1, f));
+        break;
+      }
+    }
+    if (cross != null) {
+      const x = pad.l + (cross / (n - 1)) * (W - pad.l - pad.r);
+      const yVal = m.cumCapex[Math.floor(cross)] + (m.cumCapex[Math.ceil(cross)] - m.cumCapex[Math.floor(cross)]) * (cross % 1);
+      const y = yAt(yVal);
+      ctx.fillStyle = '#3ecf8e';
+      ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3ecf8e';
+      ctx.font = '11px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText('payback ~' + cross.toFixed(1) + 'y', x + 8, y - 6);
+    }
+
+    // x labels
+    ctx.fillStyle = '#93a0b3';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'center';
+    for (let i = 0; i < n; i++) {
+      ctx.fillText('Y' + i, xAt(i), H - 8);
+    }
+  }
+
+  function recalc() {
+    updateLabels();
+    const m = compute();
+    renderMetrics(m);
+    renderTable(m);
+    renderScorecard(m);
+    drawChart(m);
+  }
+
+  // Coupling logic
+  el.revgw.addEventListener('input', () => {
+    if (el.couple.checked && !syncing) {
+      syncing = true;
+      const next = Math.round(val('revgw') * coupleRatio);
+      el.capexgw.value = Math.max(8, Math.min(60, next));
+      syncing = false;
+    }
+    recalc();
+  });
+  el.capexgw.addEventListener('input', () => {
+    if (el.couple.checked && !syncing) {
+      syncing = true;
+      coupleRatio = val('capexgw') / Math.max(1, val('revgw'));
+      syncing = false;
+    }
+    recalc();
+  });
+  el.couple.addEventListener('change', () => {
+    if (el.couple.checked) coupleRatio = val('capexgw') / Math.max(1, val('revgw'));
+    recalc();
+  });
+
+  ['gw','ogw','margin','gpulife','slrev','ss','revflight','satlife','dtc','slcapex','slebitda'].forEach(id => {
+    el[id].addEventListener('input', recalc);
+  });
+
+  document.getElementById('reset').addEventListener('click', () => {
+    el.couple.checked = true;
+    el.gw.value = BASE.gw;
+    el.ogw.value = BASE.ogw;
+    el.revgw.value = BASE.revgw;
+    el.capexgw.value = BASE.capexgw;
+    el.margin.value = BASE.margin;
+    el.gpulife.value = BASE.gpulife;
+    el.slrev.value = BASE.slrev;
+    el.ss.value = BASE.ss;
+    el.revflight.value = BASE.revflight;
+    el.satlife.value = BASE.satlife;
+    el.dtc.value = BASE.dtc;
+    el.slcapex.value = BASE.slcapex;
+    el.slebitda.value = BASE.slebitda;
+    coupleRatio = BASE.capexgw / BASE.revgw;
+    recalc();
+  });
+
+  window.addEventListener('resize', () => drawChart(compute()));
+  recalc();
+})();
+</script>
+</body>
+</html>
