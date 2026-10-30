@@ -1,7 +1,9 @@
-# SpaceX model playground
+# SpaceX, by the numbers
 
-Interactive calculator based on [Shaun Maguire's public X article](https://x.com/shaunmmaguire/status/2116260821080973679) "People don't understand SpaceX" (Oct 30, 2026), plus a payback lens.
+Interactive reading of [Shaun Maguire’s SpaceX model](https://x.com/shaunmmaguire/status/2116260821080973679).
 
 **Live:** https://iftekherchowdhury.github.io/spacex-model-playground/
 
-Not financial advice. Sequoia holds a large SpaceX position (Maguire's disclosed bias). Built by [@kotha2barta](https://x.com/kotha2barta).
+Defaults and FY table numbers are sourced from Maguire’s published article. Not financial advice.
+
+Built by [@kotha2barta](https://x.com/kotha2barta).
